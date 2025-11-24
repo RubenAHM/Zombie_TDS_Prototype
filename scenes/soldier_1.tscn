@@ -1,0 +1,59 @@
+[gd_scene load_steps=5 format=3 uid="uid://d0qc4b3gl736e"]
+
+[ext_resource type="Script" uid="uid://g1agx0udj6ar" path="res://scripts/soldier_1.gd" id="1_nbm24"]
+[ext_resource type="Texture2D" uid="uid://q8v63o12swha" path="res://assets/post-apoc-tds/enemy_default.png" id="2_k0oms"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_lbwi6"]
+radius = 8.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_gr8c7"]
+
+[node name="Soldier_1" type="CharacterBody2D" groups=["Enemy"]]
+collision_layer = 6
+collision_mask = 6
+motion_mode = 1
+wall_min_slide_angle = 0.0
+script = ExtResource("1_nbm24")
+angle = 60.0
+length = 200.0
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("2_k0oms")
+
+[node name="Spawn_bullet" type="Node2D" parent="Sprite2D"]
+position = Vector2(18, 5)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(-3, 3)
+shape = SubResource("CircleShape2D_lbwi6")
+
+[node name="Area2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+position = Vector2(-3, 3)
+shape = SubResource("CircleShape2D_gr8c7")
+
+[node name="Timer" type="Timer" parent="."]
+wait_time = 0.5
+
+[node name="Cooldown" type="Timer" parent="."]
+wait_time = 0.3
+
+[node name="RayCast2D" type="RayCast2D" parent="."]
+position = Vector2(-3, 2)
+collision_mask = 6
+
+[node name="Sight" type="RayCast2D" parent="."]
+position = Vector2(-3, 2)
+collision_mask = 6
+
+[node name="NavigationAgent2D" type="NavigationAgent2D" parent="."]
+
+[node name="NavigationAgent2D2" type="NavigationAgent2D" parent="."]
+
+[node name="nv_timer" type="Timer" parent="."]
+wait_time = 0.5
+autostart = true
+
+[connection signal="timeout" from="Cooldown" to="." method="_on_cooldown_timeout"]
+[connection signal="timeout" from="nv_timer" to="." method="_on_nv_timer_timeout"]
