@@ -14,7 +14,7 @@ var min_cooldown = 0.3
 var max_cooldown = 1.2
 var memory = false
 var search_time_remaining: float = 0.0
-const COMBAT_DISTANCE = 160.0  # Distancia de combate
+const COMBAT_DISTANCE = 140.0  # Distancia de combate
 const STANDING_DISTANCE = 120.0  # Distancia de combate sin moverse
 const RETREAT_DISTANCE = 80.0  # Distancia para retroceder
 const REACT_DISTANCE = 60
@@ -27,7 +27,7 @@ var investigation_timer: float = 0.0
 const INVESTIGATION_TIME = 3.0  # Tiempo que investiga antes de volver a patrullar
 
 
-enum State {APPROACHING, COMBAT, RETREATING, INVESTIGATING, PATROLLING, COMBAT_ZOMBIE}
+enum State {APPROACHING, COMBAT, RETREATING, INVESTIGATING, PATROLLING, COMBAT_ZOMBIE, SEARCHING}
 #Esta puta mierda que está acá determina el perro objetivo del soldado del coño este, no tocar coñodelamadre
 enum TargetType {NONE, PLAYER, ZOMBIE}
 var current_target_type: TargetType = TargetType.PLAYER
@@ -43,7 +43,7 @@ var patrol_state: PatrolState = PatrolState.TURNING_RIGHT
 #var MIN_DISTANCE = 100.0  # Distancia mínima
 #var IDEAL_DISTANCE = 200.0  # Distancia ideal para disparar
 #const APPROACH_SPEED = 0.5  # Suavizado de movimiento
-@onready var ray = $RayCast2D
+#@onready var ray = $RayCast2D
 @onready var cooldown = $Cooldown
 @onready var sight = $Sight
 @export var angle: float
@@ -57,9 +57,12 @@ const PATROL_TIME = 10.0
 var patrol_direction: float = 1.0  # 1 para derecha, -1 para izquierda
 const PATROL_ROTATION_SPEED = 0.7  # Velocidad de rotación en radianes/segundo
 var current_rotation_angle: float = 0.0
-const MAX_PATROL_ANGLE = deg_to_rad(180)  # 180 grados máximo cada lado
+const MAX_PATROL_ANGLE = deg_to_rad(120)  # 120 grados máximo cada lado
 var current_patrol_angle: float = 0.0
-
+const PATROL_HURT_TIME = 4.0
+const PATROL_HURT_ROTATION_SPEED = 3.0  # Velocidad de rotación en radianes/segundo
+var current_hurt_rotation_angle: float = 0.0
+const MAX_HURT_PATROL_ANGLE = deg_to_rad(180)
 
 
 func _ready():
@@ -95,7 +98,7 @@ func _draw():
 
 func find_any_target() -> bool:
 	#verificar si el jugador está visible (prioridad máxima)
-	if is_in_cone() and has_line_of_sight():
+	if is_player_visible(target):
 		current_target = target
 		current_target_type = TargetType.PLAYER
 		return true
@@ -112,6 +115,33 @@ func find_any_target() -> bool:
 	current_target_type = TargetType.NONE
 	return false
 
+
+func is_player_visible(player: Node2D) -> bool:
+	if player == null:
+		return false
+	var player_local = to_local(player.global_position)
+	var angle_to_player = direction.angle_to(player_local)
+	var distance = player_local.length()
+	
+	if distance > length:
+		return false
+	if abs(angle_to_player) > half:
+		return false
+	
+	sight.target_position = to_local(player.position).normalized() * (length - 30)
+	
+	
+	#sight.target_position = to_local(player.position)
+	var collider = sight.get_collider()
+	
+	if not collider:
+		return false
+	
+	
+	return collider.is_in_group("Player")
+
+
+
 # 3. Función auxiliar para ver zombies (usa tus mismas funciones)
 func is_zombie_visible(zombie: Node2D) -> bool:
 	#Verificar si el zombie está en el cono de visión
@@ -126,7 +156,7 @@ func is_zombie_visible(zombie: Node2D) -> bool:
 	if abs(angle_to_zombie) > half:
 		return false
 	
-	sight.target_position = to_local(zombie.position)
+	sight.target_position = to_local(zombie.position).normalized() * (length - 30)
 	var collider = sight.get_collider()
 	
 	if not collider:
@@ -170,12 +200,18 @@ func has_line_of_sight():
 
 func reaction():
 	var distance_to_target = position.distance_to(target.position)
+	var distance_to_current_target = 50
+	if current_target != null:
+		distance_to_current_target = position.distance_to(current_target.position)
 	if distance_to_target <= REACT_DISTANCE: #and (is_in_cone() and has_line_of_sight()):
 		look_at(target.position)
-	elif hitbox:
-		look_at(target.position)
+	elif hitbox and (current_target == null or distance_to_current_target < 25):
+		#print("herido")
+		current_state = State.SEARCHING
+		hitbox = false
 
 func _physics_process(delta: float) -> void:
+	#print(life)
 	reaction()
 	if investigating:
 		investigation_timer -= delta
@@ -213,12 +249,12 @@ func _physics_process(delta: float) -> void:
 			if current_state == State.PATROLLING or current_state == State.INVESTIGATING or current_state == State.COMBAT_ZOMBIE:
 				current_state = State.APPROACHING
 			look_at(current_target.position)
-			aim()  
+			#aim()  
 		elif current_target_type == TargetType.ZOMBIE:
 			if current_state == State.PATROLLING or current_state == State.INVESTIGATING or current_state == State.APPROACHING:
 				current_state = State.COMBAT_ZOMBIE
 			look_at(current_target.position)
-			aim()  
+			#aim()  
 	
 	
 	
@@ -234,7 +270,9 @@ func _physics_process(delta: float) -> void:
 			State.COMBAT_ZOMBIE:
 				combat_zombie_behavior()
 			State.PATROLLING:
-				patrol_behavior()  
+				patrol_behavior() 
+			State.SEARCHING:
+				hurt_behavior()
 	else:
 		queue_free()
 		
@@ -264,9 +302,9 @@ func investigate_behavior():
 func combat_behavior():
 	#if current_target_type != TargetType.PLAYER:
 		#return
-	var last_seen_position
-	last_seen_position = target.global_position
-	if is_in_cone() and has_line_of_sight():
+	#var last_seen_position
+	#last_seen_position = target.global_position
+	if is_player_visible(current_target):
 		search_time_remaining = 8.0  #Resetear tiempo de búsqueda
 		memory = true
 		var global_next_pos = nav.get_next_path_position()
@@ -298,7 +336,7 @@ func combat_behavior():
 	else:
 		if memory and search_time_remaining > 0 and not is_zombie_visible(current_target): #(memory and search_time_remaining > 0) and not has_line_of_sight():
 			search_time_remaining -= get_physics_process_delta_time()
-			nav2.target_position = last_seen_position
+			#nav2.target_position = last_seen_position
 			var global_next_pos = nav2.get_next_path_position()
 			var direction = (global_next_pos - global_position).normalized()
 			look_at(global_next_pos)
@@ -306,9 +344,9 @@ func combat_behavior():
 			move_and_slide()
 			
 			#Verificar si llegó a la posición o si se acabó el tiempo
-			var distance_to_last_seen = global_position.distance_to(last_seen_position)
+			var distance_to_last_seen = global_position.distance_to(global_next_pos) #last_seen_position
 			if distance_to_last_seen < 10.0 or search_time_remaining <= 0:
-				if is_in_cone() and has_line_of_sight():
+				if is_player_visible(current_target):
 					current_state = State.APPROACHING
 				else:
 					current_state = State.PATROLLING
@@ -359,34 +397,69 @@ func patrol_behavior():
 
 func combat_zombie_behavior():
 	if current_target_type != TargetType.ZOMBIE:
+		current_state = State.PATROLLING
 		return
-	
+	memory = false
 	if is_zombie_visible(current_target):
-		memory = false
+		
 		var global_next_pos = nav.get_next_path_position()
 		var direction = (global_next_pos - global_position).normalized()
+		#var direction1 = (current_target.position - position).normalized()
 		var distance_to_target = position.distance_to(current_target.position)
-		
 		if distance_to_target > COMBAT_DISTANCE * 0.8:
 			velocity = direction * SPEED
+		elif distance_to_target < RETREAT_DISTANCE:
+			velocity = -direction * (SPEED * 1.8)
 		else:
 			velocity = Vector2.ZERO
 			
 		move_and_slide()
+
+
+
+func hurt_behavior():
+	#Comportamiento cuando no hay nada que hacer
+	velocity = Vector2.ZERO
+	patrol_timer += get_physics_process_delta_time()
+	if current_target != null:
+		current_state = State.APPROACHING
+		patrol_timer = 0.0
+	match patrol_state:
+		PatrolState.TURNING_RIGHT:
+			rotate(PATROL_HURT_ROTATION_SPEED * get_physics_process_delta_time())
+			current_patrol_angle += PATROL_HURT_ROTATION_SPEED * get_physics_process_delta_time()
+			
+			if current_patrol_angle >= MAX_HURT_PATROL_ANGLE:
+				patrol_state = PatrolState.TURNING_LEFT
+		
+		PatrolState.TURNING_LEFT:
+			rotate(-PATROL_HURT_ROTATION_SPEED * get_physics_process_delta_time())
+			current_patrol_angle -= PATROL_HURT_ROTATION_SPEED * get_physics_process_delta_time()
+			
+			if current_patrol_angle <= -MAX_HURT_PATROL_ANGLE:
+				patrol_state = PatrolState.TURNING_RIGHT
+	
+	if patrol_timer >= PATROL_HURT_TIME:
+		current_state = State.PATROLLING
+		patrol_timer = 0.0
+	
+	
+	move_and_slide()
+
 
 func take_damage(amount):
 	life -= amount
 	#print(life)
 	#print(amount)
 
-func aim():
-	ray.target_position = to_local(current_target.position)
+#func aim():
+	#ray.target_position = to_local(current_target.position)
 
 
 func check_player_collision():
-	if ray.get_collider() == current_target and cooldown.is_stopped():
+	if sight.get_collider() == current_target and cooldown.is_stopped():
 		cooldown.start()
-	elif ray.get_collider() != current_target and not cooldown.is_stopped():
+	elif sight.get_collider() != current_target and not cooldown.is_stopped():
 		cooldown.stop()
 
 func _on_cooldown_timeout() -> void:
@@ -469,3 +542,7 @@ func _on_nv_timer_timeout() -> void:
 	if current_target == null:
 		return
 	nav.target_position = current_target.global_position
+
+
+func _on_memory_timer_timeout() -> void:
+	nav2.target_position = target.global_position

@@ -1,33 +1,28 @@
 extends CharacterBody2D
-
-
-var SPEED = 700
-var MAX_DISTANCE = 500  # Distancia máxima en píxeles
+var SPEED = 0
 var direction = Vector2.RIGHT  # Variable para almacenar la dirección
-@onready var gun = $M4A1
 var parent
 var sprite
 var colision
 var hitbox
-var distance_traveled = 0.0
 var spawn_position: Vector2
+var cooldown = 0.2
+#@onready var melee = $atked
 
 func _ready() -> void:
+	#print("atacado")
 	spawn_position = global_position
-	gun.play()
 	sprite = get_node("Sprite2D")
 	colision = get_node("CollisionShape2D")
 	hitbox = get_node("HitBoxArea/CollisionShape2D")
+	
+	#melee.play()
 
 
 func _physics_process(delta: float) -> void:
 	velocity = direction * SPEED
 	var collision = move_and_collide(velocity * delta)
 	
-	distance_traveled = global_position.distance_to(spawn_position)
-	if distance_traveled > MAX_DISTANCE:
-		destroy_bullet()
-		return
 	
 	
 	if collision:
@@ -36,24 +31,27 @@ func _physics_process(delta: float) -> void:
 			if collider.is_in_group("Player"):
 				#print("funciona")
 				#meti a todos los enemigos en el grupo enemy para detectar cuando la bala colisione con uno de ellos
-				if collider.has_method("take_dmg_ranged"):
-					collider.take_dmg_ranged(Global.dmg_soldier1)
+				if collider.has_method("take_dmg_melee"):
+					collider.take_dmg_ranged(5)
 				destroy_bullet()
 				#queue_free()
 				#collider.queue_free()
 				#hitbox es una variable bool que le permite al juego determinar si debe morir el enemigo o no, accedo a ella mediante el collider ya que hitbox se encuentra en los scripts de enemigos
-			elif collider.is_in_group("Enemyz"):
+			elif collider.is_in_group("Soldier"):
 				#print("funciona")
 				#meti a todos los enemigos en el grupo enemy para detectar cuando la bala colisione con uno de ellos
 				if collider.has_method("take_damage"):
-					var dmg_to_z = Global.dmg_soldier1 * 8
+					var dmg_to_s = 25
 					collider.hitbox = true
-					collider.take_damage(dmg_to_z)
+					collider.take_damage(dmg_to_s)
 				destroy_bullet()
 			else:
 				#queue_free()
 				destroy_bullet()
-
+	else:
+		await get_tree().create_timer(cooldown).timeout
+		queue_free()
+	
 
 func destroy_bullet():
 	sprite.hide()
@@ -61,7 +59,4 @@ func destroy_bullet():
 		colision.queue_free()
 	if is_instance_valid(hitbox):
 		hitbox.queue_free()
-
-
-func _on_audio_finished():
 	queue_free()

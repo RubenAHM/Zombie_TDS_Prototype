@@ -8,14 +8,14 @@ radius = 8.0
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_gr8c7"]
 
-[node name="Soldier_1" type="CharacterBody2D" groups=["Enemy"]]
-collision_layer = 6
-collision_mask = 6
+[node name="Soldier_1" type="CharacterBody2D" groups=["Enemy", "Soldier"]]
+collision_layer = 14
+collision_mask = 14
 motion_mode = 1
 wall_min_slide_angle = 0.0
 script = ExtResource("1_nbm24")
 angle = 60.0
-length = 200.0
+length = 220.0
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture = ExtResource("2_k0oms")
@@ -39,12 +39,8 @@ wait_time = 0.5
 [node name="Cooldown" type="Timer" parent="."]
 wait_time = 0.3
 
-[node name="RayCast2D" type="RayCast2D" parent="."]
-position = Vector2(-3, 2)
-collision_mask = 6
-
 [node name="Sight" type="RayCast2D" parent="."]
-position = Vector2(-3, 2)
+position = Vector2(8, 2)
 collision_mask = 6
 
 [node name="NavigationAgent2D" type="NavigationAgent2D" parent="."]
@@ -55,5 +51,9 @@ collision_mask = 6
 wait_time = 0.5
 autostart = true
 
+[node name="memory_timer" type="Timer" parent="."]
+autostart = true
+
 [connection signal="timeout" from="Cooldown" to="." method="_on_cooldown_timeout"]
 [connection signal="timeout" from="nv_timer" to="." method="_on_nv_timer_timeout"]
+[connection signal="timeout" from="memory_timer" to="." method="_on_memory_timer_timeout"]

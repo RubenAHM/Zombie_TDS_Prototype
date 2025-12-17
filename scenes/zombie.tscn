@@ -21,7 +21,11 @@ radius = 10.0499
 [node name="Zombie" type="CharacterBody2D" groups=["Enemy", "Enemyz"]]
 collision_layer = 6
 collision_mask = 6
+motion_mode = 1
+wall_min_slide_angle = 0.0
 script = ExtResource("1_httt1")
+angle = 80.0
+length = 200.0
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 position = Vector2(12, 0)
@@ -31,6 +35,9 @@ texture = ExtResource("2_xepks")
 hframes = 5
 vframes = 2
 frame = 1
+
+[node name="Spawn_bullet" type="Node2D" parent="Sprite2D"]
+position = Vector2(2, -25)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 light_mask = 2
@@ -70,5 +77,30 @@ visibility_layer = 3
 position = Vector2(-26, 31)
 shape = SubResource("CircleShape2D_ycv6i")
 
+[node name="nv_timer" type="Timer" parent="."]
+wait_time = 0.5
+autostart = true
+
+[node name="NavigationAgent2D" type="NavigationAgent2D" parent="."]
+
+[node name="NavigationAgent2D2" type="NavigationAgent2D" parent="."]
+
+[node name="Sight" type="RayCast2D" parent="."]
+position = Vector2(14, 0)
+target_position = Vector2(0, 25)
+collision_mask = 6
+
+[node name="memory_timer" type="Timer" parent="."]
+autostart = true
+
+[node name="Cooldown" type="Timer" parent="."]
+wait_time = 0.3
+
+[node name="Timer" type="Timer" parent="."]
+wait_time = 0.5
+
 [connection signal="body_entered" from="Area2D" to="Area2D" method="_on_body_entered"]
 [connection signal="body_exited" from="Area2D" to="Area2D" method="_on_body_exited"]
+[connection signal="timeout" from="nv_timer" to="." method="_on_nv_timer_timeout"]
+[connection signal="timeout" from="memory_timer" to="." method="_on_memory_timer_timeout"]
+[connection signal="timeout" from="Cooldown" to="." method="_on_cooldown_timeout"]

@@ -6843,7 +6843,7 @@ texture = ExtResource("7_kpk0m")
 position = Vector2(67, -34)
 
 [node name="Zombie" parent="." instance=ExtResource("9_7gix3")]
-position = Vector2(115, 21)
+position = Vector2(68, -100)
 
 [node name="Ammo_M16" parent="." instance=ExtResource("11_dw7u0")]
 position = Vector2(31, -35)

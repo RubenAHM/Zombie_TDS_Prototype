@@ -61,7 +61,7 @@ func die():
 func take_dmg():
 	if not dead:
 		$HUD/Health.points[1].x -= dmg_tkn
-		player.play()
+		#player.play()
 		if $HUD/Health.points[1].x == 0:
 			dead = true
 			die()
@@ -71,6 +71,14 @@ func take_dmg():
 			hitbox = true
 
 func take_dmg_ranged(amount):
+	if not dead:
+		$HUD/Health.points[1].x -= amount
+		player.play()
+		if $HUD/Health.points[1].x == 0:
+			dead = true
+			die()
+
+func take_dmg_melee(amount):
 	if not dead:
 		$HUD/Health.points[1].x -= amount
 		player.play()
